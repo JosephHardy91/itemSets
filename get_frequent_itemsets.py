@@ -73,7 +73,7 @@ if __name__ == "__main__":
     print("Calculating...", end='')
     min_size = 1
     min_support = 0.01
-    result = get_frequent_itemsets(transactions, min_support)#, min_size=min_size)
+    result = get_frequent_itemsets(transactions, min_support, min_size=min_size)
     print("Calculation complete.")
     # Print the final frequent itemsets
     # for itemset, support in result.items():

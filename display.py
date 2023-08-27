@@ -23,17 +23,25 @@ def display_frequent_itemsets(transactions, itemsets, by_size=False, sort_by_sup
                 order = np.argsort(supports)[::-1]
                 for i in order:
                     if display_lift and len(size_itemsets[i]) >= 2:
-                        print(
-                            f"Frequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
+                        lift_strings=[]
+                        max_lift = 0.
                         for item in size_itemsets[i]:
                             item_lift = round(lift(transactions, itemsets, size_itemsets[i], item), 2)
+                            if item_lift > max_lift:
+                                max_lift = item_lift
+                            if item_lift <= 1.00: continue
                             item_support = stat_support(transactions, itemsets, item)
                             # item_confidence = round(stat_confidence(item, size_itemsets[i], transactions, itemsets),2)
-                            new_sell_chance = round(item_lift * min(item_support, 1),2)
+                            new_sell_chance = round(item_lift * min(item_support, 1), 2)
+                            lift_strings.append(
+                                f"\t\tTimes Likelier to Sell {item.capitalize()}: {item_lift}x (Sell Chance: {round(item_support, 2)}->{new_sell_chance})")
+                        if max_lift > 1.00:
                             print(
-                                f"--Times Likelier to Sell {item.capitalize()}: {item_lift}x (Sell Chance: {round(item_support,2)}->{new_sell_chance})")
+                                f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
+                            for lift_string in lift_strings:
+                                print(lift_string)
                     else:
-                        print(f"Frequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
+                        print(f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
                 print()
         else:
             for size in range(smallest_size, largest_size + 1):
