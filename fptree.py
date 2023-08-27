@@ -27,34 +27,23 @@ from collections import defaultdict
 import numpy as np
 
 
-class Tree():
+class Tree:
     def __init__(self):
         self.root = Node(None, 0)
 
     def add_transaction(self, sorted_items):
         self.root.add_children(sorted_items)
 
-    # def __str__(self):
-    #     return self.root.__str__(depth=0)
-
     def __str__(self):
         return self.root.__str__(depth=0, prefix='', last=True)
-class Node():
+
+
+class Node:
     def __init__(self, item, count):
         self.nodes = {}
         self.item = item
         self.count = count
 
-    # def __str__(self, depth):
-    #     #tabs = '\t' * depth
-    #     #stars = '*' * depth
-    #     lines = '_' * depth
-    #     if len(self.nodes) == 0:
-    #         return f"|{lines} {self.item}:{self.count}"
-    #     else:
-    #         children_str = "\n".join(
-    #             node.__str__(depth=depth + 1) for node in self.nodes.values())
-    #         return f"|{lines} {self.item}:{self.count}\n{children_str}"
     def __str__(self, depth=0, prefix='', last=True):
         lines = []
         connector = '└── ' if last else '├── '
@@ -68,7 +57,6 @@ class Node():
             lines.append(node.__str__(depth=depth + 1, prefix=new_prefix, last=child_last))
 
         return '\n'.join(lines)
-
 
     def add_node(self, item, count):
         node = Node(item, count)
@@ -91,7 +79,6 @@ def get_itemcounts(transactions, min_support_count=2):
     for transaction in transactions:
         for item in transaction:
             itemcounts[item] += 1
-    # print(itemcounts)
     return {k: v for k, v in itemcounts.items() if v >= min_support_count}
 
 
@@ -104,14 +91,10 @@ def get_sorted_itemcounts(itemcounts):
 def build_tree(transactions, min_support_count=2):
     sorted_itemcounts, item_indices = get_sorted_itemcounts(
         get_itemcounts(transactions, min_support_count=min_support_count))
-    # print(sorted_itemcounts)
     tree = Tree()
     for transaction in transactions:
         transaction_list = np.array(list(transaction))
         transaction_item_priorities = [item_indices[item] for item in transaction_list]
-        # priority_to_index_mapping = {priority: i for i, priority in enumerate(transaction_item_priorities)}
-        # sorted_priorities = sorted(transaction_item_priorities,reverse=True)
-        # print(transaction_list, transaction_item_priorities, np.argsort(transaction_item_priorities)[::-1])
         sorted_items = transaction_list[np.argsort(transaction_item_priorities)[::-1]]
         tree.add_transaction(sorted_items)
 
