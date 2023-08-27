@@ -1,8 +1,9 @@
 from itertools import combinations
 from collections import Counter
 
+import numpy as np
 from tqdm import tqdm
-from fpgrowth import get_fp_frequent_itemsets
+from fptree import get_fptree_frequent_itemsets
 
 
 # Helper function to update the candidate itemset and their support counts
@@ -33,7 +34,7 @@ def apriori(transactions, min_support, min_size=2):
 
     k = 2
     pbar = tqdm(total=k)
-    #pbar.display('k:', 0)
+    # pbar.display('k:', 0)
     pbar.update(k)
     while candidates:
         # Generate new candidate itemsets (Ck) for next iteration
@@ -59,27 +60,44 @@ def apriori(transactions, min_support, min_size=2):
     return final_frequent_itemsets
 
 
-get_frequent_itemsets = apriori #get_fp_frequent_itemsets
+# get_frequent_itemsets = lambda transactions, min_support_count: get_fptree_frequent_itemsets(transactions, min_support_count,as_pandas=True)#apriori #get_fp_frequent_itemsets
 
 if __name__ == "__main__":
     from preprocess import bin_all_items
     import pickle as pkl
 
+    tree = True
     transactions = pkl.load(open('transactions.pkl', 'rb'))
 
     print("Preprocessing transactions...", end='')
     transactions = bin_all_items(transactions, bins=10)
     print("Preprocessing complete.")
     print("Calculating...", end='')
-    min_size = 1
-    min_support = 0.01
-    result = get_frequent_itemsets(transactions, min_support, min_size=min_size)
-    print("Calculation complete.")
-    # Print the final frequent itemsets
-    # for itemset, support in result.items():
-    #     print(f"Frequent Itemset: {itemset}, Support: {support}")
+    if not tree:
+        min_size = 1
+        min_support = 0.01
+        min_support_count = 1  # min_support * len(transactions)
+        result = apriori(transactions, min_support, min_size=min_size)
 
-    from display import display_frequent_itemsets
+        # Print the final frequent itemsets
+        # for itemset, support in result.items():
+        #     print(f"Frequent Itemset: {itemset}, Support: {support}")
+        # print(result)
+        from display import display_frequent_itemsets
 
-    print("Displaying...")
-    display_frequent_itemsets(transactions, result, by_size=True, sort_by_support=True, display_lift=True)
+        print("Displaying...")
+        display_frequent_itemsets(transactions, result, by_size=True, sort_by_support=True, display_lift=True)
+    else:
+        min_support_count_tree = 1
+        min_support_count_pattern = 2
+
+        tree, conditional_trees, frequent_patterns = get_fptree_frequent_itemsets(transactions, min_support_count_tree,
+                                                                                  min_support_count_pattern,
+                                                                                  k=-1, as_pandas=True)
+        print("Calculation complete.")
+        print(frequent_patterns)
+        # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)
+        print('Most frequent pattern order: 10^' +
+              str(round(np.log10(frequent_patterns.iloc[0]['support_count'] / len(
+                  transactions)))))
+        # order of 10^-3 right now (without TODO above addressed), apriori is about 0.05 (order of 10^-2)

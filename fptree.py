@@ -1,4 +1,6 @@
 """
+https://www.softwaretestinghelp.com/fp-growth-algorithm-data-mining/
+
 The frequent pattern growth method lets us find the frequent pattern without candidate generation.
 
 Let us see the steps followed to mine the frequent pattern using frequent pattern growth algorithm:
@@ -24,12 +26,15 @@ Conditional pattern base is a sub-database consisting of prefix paths in the FP 
 #8) Frequent Patterns are generated from the Conditional FP Tree.
 """
 from collections import defaultdict
+from itertools import combinations
+
 import numpy as np
+import pandas as pd
 
 
 class Tree:
-    def __init__(self):
-        self.root = Node(None, 0)
+    def __init__(self, n_transactions):
+        self.root = Node('Top of Tree', None)
 
     def add_transaction(self, sorted_items):
         self.root.add_children(sorted_items)
@@ -37,12 +42,22 @@ class Tree:
     def __str__(self):
         return self.root.__str__(depth=0, prefix='', last=True)
 
+    def get_branches_reversed(self):
+        return self.root.get_branches_from_leaf()
+
+    def prune(self, min_support_count=2):
+        self.root.prune(min_support_count)
+
+    def get_branches_from_leaf(self):
+        return self.root.get_branches_from_leaf()
+
 
 class Node:
-    def __init__(self, item, count):
+    def __init__(self, item, count, parent=None):
         self.nodes = {}
         self.item = item
         self.count = count
+        self.parent = parent
 
     def __str__(self, depth=0, prefix='', last=True):
         lines = []
@@ -59,7 +74,7 @@ class Node:
         return '\n'.join(lines)
 
     def add_node(self, item, count):
-        node = Node(item, count)
+        node = Node(item, count, parent=self)
         self.nodes[node.item] = node
         return node
 
@@ -69,9 +84,37 @@ class Node:
         if first_item in self.nodes:
             self.nodes[first_item].count += 1
         else:
-            self.nodes[first_item] = Node(first_item, 1)
+            self.nodes[first_item] = Node(first_item, 1, parent=self)
 
         self.nodes[first_item].add_children(items[1:])
+
+    def get_branches_from_leaf(self):
+        # starting at each leaf, get the branch of nodes leading to the root
+
+        branches = []
+        for node in self.nodes.values():
+            if len(node.nodes) == 0:
+                branches.append(node.get_branch())
+            else:
+                branches.extend(node.get_branches_from_leaf())
+        return branches
+
+    def get_branch(self):
+        branch = []
+        node = self
+        while node is not None and node.parent is not None:
+            branch.append(node.item)
+            node = node.parent
+        return branch
+
+    def prune(self, min_support_count):
+        # prune branches from tree
+        kept_nodes = []
+        for node in self.nodes.values():
+            if node.count >= min_support_count:
+                node.prune(min_support_count)
+                kept_nodes.append(node)
+        self.nodes = {node.item: node for node in kept_nodes}
 
 
 def get_itemcounts(transactions, min_support_count=2):
@@ -89,9 +132,9 @@ def get_sorted_itemcounts(itemcounts):
 
 
 def build_tree(transactions, min_support_count=2):
-    sorted_itemcounts, item_indices = get_sorted_itemcounts(
+    _, item_indices = get_sorted_itemcounts(
         get_itemcounts(transactions, min_support_count=min_support_count))
-    tree = Tree()
+    tree = Tree(len(transactions))
     for transaction in transactions:
         transaction_list = np.array(list(transaction))
         transaction_item_priorities = [item_indices[item] for item in transaction_list]
@@ -101,8 +144,88 @@ def build_tree(transactions, min_support_count=2):
     return tree
 
 
+def build_conditionals(tree, min_support_count=2):
+    branches = tree.get_branches_reversed()
+    conditional_trees = {}
+    for branch in branches:
+        # for i in range(len(branch)):
+        conditional_tree = conditional_trees.get(branch[0], Tree(0))
+        conditional_tree.add_transaction(branch[1:])
+        conditional_trees[branch[0]] = conditional_tree
+
+    for item in conditional_trees:
+        conditional_trees[item].prune(min_support_count=min_support_count)
+    return conditional_trees
+
+
+def get_itemcounts_tree(tree):
+    itemcounts = defaultdict(int)
+    # print(tree)
+    for branch in tree.get_branches_reversed():
+        for item in branch:
+            itemcounts[item] += 1
+    return itemcounts
+
+
+# each pattern is a tuple of (itemset, support_count). tree.root.count is arbitrary and unreliable for support count. ensure recursion is stopped
+def get_frequent_patterns(conditional_trees, k=3, min_support_count=2):
+    """
+    4. Mining of FP-tree is summarized below:
+
+The lowest node item I5 is not considered as it does not have a min support count, hence it is deleted.
+The next lower node is I4. I4 occurs in 2 branches , {I2,I1,I3:,I41},{I2,I3,I4:1}. Therefore considering I4 as suffix the prefix paths will be {I2, I1, I3:1}, {I2, I3: 1}. This forms the conditional pattern base.
+The conditional pattern base is considered a transaction database, an FP-tree is constructed. This will contain {I2:2, I3:2}, I1 is not considered as it does not meet the min support count.
+This path will generate all combinations of frequent patterns : {I2,I4:2},{I3,I4:2},{I2,I3,I4:2}
+For I3, the prefix path would be: {I2,I1:3},{I2:1}, this will generate a 2 node FP-tree : {I2:4, I1:3} and frequent patterns are generated: {I2,I3:4}, {I1:I3:3}, {I2,I1,I3:3}.
+For I1, the prefix path would be: {I2:4} this will generate a single node FP-tree: {I2:4} and frequent patterns are generated: {I2, I1:4}.
+
+Item	Conditional Pattern Base	Conditional FP-tree	Frequent Patterns Generated
+I4	{I2,I1,I3:1},{I2,I3:1}	{I2:2, I3:2}	{I2,I4:2},{I3,I4:2},{I2,I3,I4:2}
+I3	{I2,I1:3},{I2:1}	{I2:4, I1:3}	{I2,I3:4}, {I1:I3:3}, {I2,I1,I3:3}
+I1	{I2:4}	{I2:4}	{I2,I1:4}
+"""
+    frequent_patterns = []
+    for item in conditional_trees:
+        if len(conditional_trees[item].root.nodes) == 0: continue
+        conditional_tree = conditional_trees[item]
+        conditional_itemcounts = get_itemcounts_tree(conditional_tree)
+        # generate all combinations of itemsets from conditional_itemcounts and item, with the lowest itemcount as the support for that itemset combination
+
+        # get itemsets
+        itemsets = []
+        if k == -1:
+            k = len(conditional_itemcounts)
+        for i in range(2, k + 1):
+            itemsets += list(combinations(conditional_itemcounts, i))
+        # print(itemsets, conditional_itemcounts)
+        # get itemsets with support count
+        itemsets = [(itemset, min([conditional_itemcounts[item] for item in itemset])) for itemset in itemsets]
+        itemsets = [(itemset, count) for itemset, count in itemsets if count > min_support_count]
+        # add to frequent patterns
+        frequent_patterns += itemsets
+    return frequent_patterns
+
+
+def get_fptree_frequent_itemsets(transactions, min_support_count_tree=2, min_support_count_pattern=2, k=3,
+                                 as_pandas=False):
+    tree = build_tree(transactions, min_support_count=min_support_count_tree)
+    conditional_trees = build_conditionals(tree, min_support_count=min_support_count_tree)
+    frequent_patterns = get_frequent_patterns(conditional_trees, k=k, min_support_count=min_support_count_pattern)
+    if as_pandas:
+        frequent_patterns = pd.DataFrame(frequent_patterns, columns=['itemset', 'support_count'])
+    return tree, conditional_trees, frequent_patterns
+
+
 if __name__ == "__main__":
     # load transactions.pkl and build tree
     transactions = np.load("transactions.pkl", allow_pickle=True)
-    tree = build_tree(transactions)
-    print(tree)
+
+    min_support_count_tree = 2
+    min_support_count_pattern = 2
+
+    tree, conditional_trees, frequent_patterns = get_fptree_frequent_itemsets(transactions, min_support_count_tree,
+                                                                              min_support_count_pattern,
+                                                                              k=-1, as_pandas=True)
+
+    print(
+        frequent_patterns)  # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)
