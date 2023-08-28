@@ -65,6 +65,7 @@ def apriori(transactions, min_support, min_size=2):
 if __name__ == "__main__":
     from preprocess import bin_all_items
     import pickle as pkl
+    import time
 
     tree = not True
     transactions = pkl.load(open('transactions.pkl', 'rb'))
@@ -74,6 +75,7 @@ if __name__ == "__main__":
     print("Preprocessing complete.")
     print("Calculating...", end='')
     if not tree:
+        t1 = time.time()
         min_size = 1
         min_support = 0.01
         min_support_count = 1  # min_support * len(transactions)
@@ -83,18 +85,23 @@ if __name__ == "__main__":
         # for itemset, support in result.items():
         #     print(f"Frequent Itemset: {itemset}, Support: {support}")
         # print(result)
+        t2 = time.time()
+        print(f"Calculation complete. Time elapsed: {t2 - t1:.2f} seconds.")
         from display import display_frequent_itemsets, visualize_support_by_itemset_size
 
         print("Displaying...")
         display_frequent_itemsets(transactions, result, by_size=True, sort_by_support=True, display_lift=True)
     else:
+        t1 = time.time()
         min_support_count_tree = 1
         min_support_count_pattern = 2
 
         tree, conditional_trees, frequent_patterns = get_fptree_frequent_itemsets(transactions, min_support_count_tree,
                                                                                   min_support_count_pattern,
                                                                                   k=-1)
+        t2 = time.time()
         print("Calculation complete.")
+        print(f"Calculation complete. Time elapsed: {t2 - t1:.2f} seconds.")
         #print(conditional_trees['fusion'])
         print(tree)
         # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)

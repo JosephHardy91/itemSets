@@ -210,7 +210,7 @@ I1	{I2:4}	{I2:4}	{I2,I1:4}
         if len(conditional_trees[base_item].root.nodes) == 0: continue
         conditional_tree = conditional_trees[base_item]
         conditional_itemcounts = get_itemcounts_tree(conditional_tree)
-        print(base_item,conditional_itemcounts)
+        #print(base_item,conditional_itemcounts)
         # generate all combinations of itemsets from conditional_itemcounts and item, with the lowest itemcount as the support for that itemset combination
 
         # get itemsets

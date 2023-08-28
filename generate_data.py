@@ -107,6 +107,7 @@ def get_fake_transactions_conditional(items, n_transactions=1000, conditionals_p
 
 # Show first 5 transactions to verify
 if __name__ == "__main__":
+    import time
     # transactions = get_fake_transactions(['elbow', 'pipe', 'tee', 'flange', 'valve', 'fusion', 'gasket', 'pump'],
     #                                      n_transactions=100000)
     product_list = ['elbow', 'pipe', 'tee', 'flange', 'valve', 'fusion', 'gasket', 'pump', 'billy goat', 'television',
@@ -114,8 +115,11 @@ if __name__ == "__main__":
                     'RC car', 'jungle gym',
                     'hasbro electronics musical radiovision display set charger port nitro gelding']
     #product_list = range(1, 1000)
+    t1 = time.time()
     transactions = get_fake_transactions_conditional(product_list,
-                                                     n_transactions=100000)
+                                                     n_transactions=1000000)
+    t2 = time.time()
+    print("Created data in {:2f} seconds".format(t2 - t1))
     import pickle as pkl
 
     pkl.dump(transactions, open('transactions.pkl', 'wb'))
