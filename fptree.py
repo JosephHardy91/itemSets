@@ -33,17 +33,20 @@ import pandas as pd
 
 
 class Tree:
-    def __init__(self, n_transactions):
-        self.root = Node('Top of Tree', None)
+    def __init__(self, n_transactions=None):
+        self.root = Node('Top of Tree', n_transactions)
 
-    def add_transaction(self, sorted_items):
-        self.root.add_children(sorted_items)
+    def add_transaction(self, sorted_items, with_counts=False):
+        if not with_counts:
+            self.root.add_children(sorted_items)
+        else:
+            self.root.add_children(sorted_items, with_counts=True)
 
     def __str__(self):
         return self.root.__str__(depth=0, prefix='', last=True)
 
-    def get_branches_reversed(self):
-        return self.root.get_branches_from_leaf()
+    def get_branches_reversed(self, with_counts=False):
+        return self.root.get_branches_from_leaf(with_counts=with_counts)
 
     def prune(self, min_support_count=2):
         self.root.prune(min_support_count)
@@ -78,32 +81,44 @@ class Node:
         self.nodes[node.item] = node
         return node
 
-    def add_children(self, items):
+    def add_children(self, items, with_counts=False):
         if len(items) == 0: return
-        first_item = items[0]
-        if first_item in self.nodes:
-            self.nodes[first_item].count += 1
+        if not with_counts:
+            first_item = items[0]
+            if first_item in self.nodes:
+                self.nodes[first_item].count += 1
+            else:
+                self.nodes[first_item] = Node(first_item, 1, parent=self)
+
+            self.nodes[first_item].add_children(items[1:])
         else:
-            self.nodes[first_item] = Node(first_item, 1, parent=self)
+            first_item, first_count = items[0]
+            if first_item in self.nodes:
+                self.nodes[first_item].count = min(first_count,self.nodes[first_item].count)
+            else:
+                self.nodes[first_item] = Node(first_item, first_count, parent=self)
 
-        self.nodes[first_item].add_children(items[1:])
+            self.nodes[first_item].add_children(items[1:], with_counts=True)
 
-    def get_branches_from_leaf(self):
+    def get_branches_from_leaf(self, with_counts=False):
         # starting at each leaf, get the branch of nodes leading to the root
 
         branches = []
         for node in self.nodes.values():
             if len(node.nodes) == 0:
-                branches.append(node.get_branch())
+                branches.append(node.get_branch(with_counts=with_counts))
             else:
-                branches.extend(node.get_branches_from_leaf())
+                branches.extend(node.get_branches_from_leaf(with_counts=with_counts))
         return branches
 
-    def get_branch(self):
+    def get_branch(self, with_counts=False):
         branch = []
         node = self
         while node is not None and node.parent is not None:
-            branch.append(node.item)
+            if not with_counts:
+                branch.append(node.item)
+            else:
+                branch.append((node.item, node.count))
             node = node.parent
         return branch
 
@@ -145,13 +160,19 @@ def build_tree(transactions, min_support_count=2):
 
 
 def build_conditionals(tree, min_support_count=2):
-    branches = tree.get_branches_reversed()
+    branches = tree.get_branches_reversed(with_counts=True)
     conditional_trees = {}
+    i = 0
     for branch in branches:
-        # for i in range(len(branch)):
-        conditional_tree = conditional_trees.get(branch[0], Tree(0))
-        conditional_tree.add_transaction(branch[1:])
-        conditional_trees[branch[0]] = conditional_tree
+        #print(branch)
+        # if i==5:
+        #     print(conditional_tree)
+        #     break
+        conditional_tree = conditional_trees.get(branch[0][0], Tree(None))
+        conditional_tree.add_transaction(branch[1:], with_counts=True)
+
+        conditional_trees[branch[0][0]] = conditional_tree
+        i += 1
 
     for item in conditional_trees:
         conditional_trees[item].prune(min_support_count=min_support_count)
@@ -185,34 +206,37 @@ I3	{I2,I1:3},{I2:1}	{I2:4, I1:3}	{I2,I3:4}, {I1:I3:3}, {I2,I1,I3:3}
 I1	{I2:4}	{I2:4}	{I2,I1:4}
 """
     frequent_patterns = []
-    for item in conditional_trees:
-        if len(conditional_trees[item].root.nodes) == 0: continue
-        conditional_tree = conditional_trees[item]
+    for base_item in conditional_trees:
+        if len(conditional_trees[base_item].root.nodes) == 0: continue
+        conditional_tree = conditional_trees[base_item]
         conditional_itemcounts = get_itemcounts_tree(conditional_tree)
+        print(base_item,conditional_itemcounts)
         # generate all combinations of itemsets from conditional_itemcounts and item, with the lowest itemcount as the support for that itemset combination
 
         # get itemsets
         itemsets = []
         if k == -1:
             k = len(conditional_itemcounts)
+        other_items = list(conditional_itemcounts.keys())
         for i in range(2, k + 1):
-            itemsets += list(combinations(conditional_itemcounts, i))
+            itemsets += list(combinations([base_item]+other_items, i))
         # print(itemsets, conditional_itemcounts)
         # get itemsets with support count
-        itemsets = [(itemset, min([conditional_itemcounts[item] for item in itemset])) for itemset in itemsets]
+        itemsets = [(itemset, max([conditional_itemcounts[item] for item in other_items])) for itemset in itemsets]
         itemsets = [(itemset, count) for itemset, count in itemsets if count > min_support_count]
         # add to frequent patterns
         frequent_patterns += itemsets
     return frequent_patterns
 
 
-def get_fptree_frequent_itemsets(transactions, min_support_count_tree=2, min_support_count_pattern=2, k=3,
-                                 as_pandas=False):
+def get_fptree_frequent_itemsets(transactions, min_support_count_tree=2, min_support_count_pattern=2, k=3):
     tree = build_tree(transactions, min_support_count=min_support_count_tree)
     conditional_trees = build_conditionals(tree, min_support_count=min_support_count_tree)
     frequent_patterns = get_frequent_patterns(conditional_trees, k=k, min_support_count=min_support_count_pattern)
-    if as_pandas:
-        frequent_patterns = pd.DataFrame(frequent_patterns, columns=['itemset', 'support_count'])
+    frequent_patterns = pd.DataFrame(frequent_patterns, columns=['itemset', 'support_count'])
+    frequent_patterns = frequent_patterns.groupby('itemset').agg({'support_count': 'sum'}).sort_values('support_count',
+                                                                                             ascending=False).reset_index()
+    frequent_patterns['itemset_size'] = frequent_patterns['itemset'].apply(lambda x: len(x))
     return tree, conditional_trees, frequent_patterns
 
 
@@ -225,7 +249,7 @@ if __name__ == "__main__":
 
     tree, conditional_trees, frequent_patterns = get_fptree_frequent_itemsets(transactions, min_support_count_tree,
                                                                               min_support_count_pattern,
-                                                                              k=-1, as_pandas=True)
+                                                                              k=-1)
 
     print(
         frequent_patterns)  # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)

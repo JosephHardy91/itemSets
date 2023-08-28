@@ -5,6 +5,7 @@ from get_stats import support as stat_support
 
 
 def display_frequent_itemsets(transactions, itemsets, by_size=False, sort_by_support=True, display_lift=False):
+    t_len = len(transactions)
     if by_size:
         itemsets = {k: v for k, v in sorted(itemsets.items(), key=lambda item: len(item[0]))}
         sizes = list(map(len, list(itemsets.keys())))
@@ -37,11 +38,11 @@ def display_frequent_itemsets(transactions, itemsets, by_size=False, sort_by_sup
                                 f"\t\tTimes Likelier to Sell {item.capitalize()}: {item_lift}x (Sell Chance: {round(item_support, 2)}->{new_sell_chance})")
                         if max_lift > 1.00:
                             print(
-                                f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
+                                f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]*t_len}")
                             for lift_string in lift_strings:
                                 print(lift_string)
                     else:
-                        print(f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]}")
+                        print(f"\tFrequent Itemset: {size_itemsets[i]}, Support: {supports[i]*t_len}")
                 print()
         else:
             for size in range(smallest_size, largest_size + 1):
@@ -55,3 +56,9 @@ def display_frequent_itemsets(transactions, itemsets, by_size=False, sort_by_sup
 
         for itemset, support in itemsets.items():
             print(f"Frequent Itemset: {itemset}, Support: {support}")
+
+def visualize_support_by_itemset_size(tree_frequent_patterns):
+    import matplotlib.pyplot as plt
+    tfp = tree_frequent_patterns
+    tfp.plot(x='itemset_size',y='support_count',kind='scatter')
+    plt.show()

@@ -4,7 +4,7 @@ from collections import Counter
 import numpy as np
 from tqdm import tqdm
 from fptree import get_fptree_frequent_itemsets
-
+from display import visualize_support_by_itemset_size
 
 # Helper function to update the candidate itemset and their support counts
 def update_candidates(transactions, candidates, min_support_count):
@@ -66,7 +66,7 @@ if __name__ == "__main__":
     from preprocess import bin_all_items
     import pickle as pkl
 
-    tree = True
+    tree = not True
     transactions = pkl.load(open('transactions.pkl', 'rb'))
 
     print("Preprocessing transactions...", end='')
@@ -83,7 +83,7 @@ if __name__ == "__main__":
         # for itemset, support in result.items():
         #     print(f"Frequent Itemset: {itemset}, Support: {support}")
         # print(result)
-        from display import display_frequent_itemsets
+        from display import display_frequent_itemsets, visualize_support_by_itemset_size
 
         print("Displaying...")
         display_frequent_itemsets(transactions, result, by_size=True, sort_by_support=True, display_lift=True)
@@ -93,11 +93,14 @@ if __name__ == "__main__":
 
         tree, conditional_trees, frequent_patterns = get_fptree_frequent_itemsets(transactions, min_support_count_tree,
                                                                                   min_support_count_pattern,
-                                                                                  k=-1, as_pandas=True)
+                                                                                  k=-1)
         print("Calculation complete.")
-        print(frequent_patterns)
+        #print(conditional_trees['fusion'])
+        print(tree)
         # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)
         print('Most frequent pattern order: 10^' +
               str(round(np.log10(frequent_patterns.iloc[0]['support_count'] / len(
-                  transactions)))))
+                  transactions)),2))+f' ({frequent_patterns.iloc[0]["support_count"]/len(transactions)})')
         # order of 10^-3 right now (without TODO above addressed), apriori is about 0.05 (order of 10^-2)
+        #print(tree)
+        #visualize_support_by_itemset_size(frequent_patterns)
