@@ -6,6 +6,7 @@ from tqdm import tqdm
 from fptree import get_fptree_frequent_itemsets
 from display import visualize_support_by_itemset_size
 
+
 # Helper function to update the candidate itemset and their support counts
 def update_candidates(transactions, candidates, min_support_count):
     candidate_counts = Counter()
@@ -102,12 +103,19 @@ if __name__ == "__main__":
         t2 = time.time()
         print("Calculation complete.")
         print(f"Calculation complete. Time elapsed: {t2 - t1:.2f} seconds.")
-        #print(conditional_trees['fusion'])
+        # print(conditional_trees['fusion'])
         print(tree)
         # TODO: not getting correct support_counts (need to flow 'tree' counts to conditional_trees/frequent_patterns)
         print('Most frequent pattern order: 10^' +
               str(round(np.log10(frequent_patterns.iloc[0]['support_count'] / len(
-                  transactions)),2))+f' ({frequent_patterns.iloc[0]["support_count"]/len(transactions)})')
+                  transactions)), 2)) + f' ({frequent_patterns.iloc[0]["support_count"] / len(transactions)})')
         # order of 10^-3 right now (without TODO above addressed), apriori is about 0.05 (order of 10^-2)
-        #print(tree)
-        #visualize_support_by_itemset_size(frequent_patterns)
+        # print(tree)
+        # visualize_support_by_itemset_size(frequent_patterns)
+
+        # tree is about 3.75x faster than apriori (for 100k/1M transactions - (tree: 0.87s/7.28s; apriori: 5.88s/26.94s))
+        # apriori: 17k-37.1k records per second
+        # tree:    115k-137.4k records per second
+
+        # best of tree vs worst of apriori = 7.1x faster
+        # worst of tree vs best of apriori = 2.1x faster

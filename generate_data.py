@@ -117,7 +117,7 @@ if __name__ == "__main__":
     #product_list = range(1, 1000)
     t1 = time.time()
     transactions = get_fake_transactions_conditional(product_list,
-                                                     n_transactions=1000000)
+                                                     n_transactions=100000)
     t2 = time.time()
     print("Created data in {:2f} seconds".format(t2 - t1))
     import pickle as pkl
